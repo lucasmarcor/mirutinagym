@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Mi Rutina Gym</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="data:application/json,{%22name%22:%22Mi%20Rutina%20Gym%22,%22short_name%22:%22GymTracker%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22#0f172a%22,%22theme_color%22:%22#0f172a%22}">
+</head>
+<body>
+
+  <header class="app-header">
+    <h1>🏋️‍♂️ Mi Rutina Gym</h1>
+    <div id="volume-summary" class="volume-badge">Volumen total: 0 kg</div>
+  </header>
+
+  <!-- Selector de Días / Rutinas -->
+  <nav class="day-selector">
+    <button class="day-btn active" data-day="dayA">Día A</button>
+    <button class="day-btn" data-day="dayB">Día B</button>
+    <button class="day-btn" data-day="dayC">Día C</button>
+  </nav>
+
+  <!-- Barra de Progreso del Día -->
+  <div class="progress-bar-container">
+    <div id="progress-bar" class="progress-bar" style="width: 0%;"></div>
+  </div>
+
+  <!-- Contenedor de Ejercicios -->
+  <main id="exercises-container" class="exercises-container">
+    <!-- Se generan dinámicamente con JS -->
+  </main>
+
+  <!-- Formulario para agregar un nuevo ejercicio -->
+  <section class="add-exercise-section">
+    <h3>➕ Agregar Ejercicio</h3>
+    <div class="add-form">
+      <input type="text" id="new-exercise-name" placeholder="Ej: Press de Banca" autocomplete="off">
+      <button id="add-exercise-btn" class="primary-btn">Agregar</button>
+    </div>
+  </section>
+
+  <!-- Temporizador de Descanso Flotante -->
+  <div id="timer-banner" class="timer-banner hidden">
+    <span>⏱️ Descanso: <strong id="timer-display">01:30</strong></span>
+    <button id="close-timer-btn" class="close-timer-btn">✕</button>
+  </div>
+
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW error:', err));
+    }
+  </script>
+</body>
+</html>
