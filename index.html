@@ -2,54 +2,759 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Mi Rutina Gym</title>
-  <link rel="stylesheet" href="styles.css">
-  <link rel="manifest" href="data:application/json,{%22name%22:%22Mi%20Rutina%20Gym%22,%22short_name%22:%22GymTracker%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22#0f172a%22,%22theme_color%22:%22#0f172a%22}">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vigoria - Mi entrenamiento</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      /* Cambio 4: Modo claro en tonos azules */
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --accent: #007bff;
+      --text: #212529;
+      --muted: #6c757d;
+      --border: #dee2e6;
+      --danger: #dc3545;
+      --warning: #ffc107;
+      --input-bg: #ffffff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 16px; max-width: 600px; margin: 0 auto; }
+
+    /* Cambio 1: Encabezado con botón de gestor a la derecha */
+    .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .header-container h1 { font-size: 1.4rem; margin-bottom: 0; }
+    
+    h2, h3 { margin-bottom: 12px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 4px; font-weight: 500; }
+    input, select, button { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); margin-bottom: 12px; font-size: 1rem; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+    button.btn-main { background: var(--accent); color: #fff; font-weight: bold; cursor: pointer; border: none; margin-bottom: 0; }
+    button.btn-main:active { opacity: 0.8; }
+    button.btn-sec { background: transparent; color: var(--accent); border: 1px solid var(--accent); cursor: pointer; }
+    button.btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 6px; font-size: 0.8rem; margin-bottom: 0; }
+    button.btn-warning { background: var(--warning); color: #212529; font-weight: bold; border: none; padding: 8px; font-size: 0.85rem; margin-bottom: 12px; cursor: pointer; }
+
+    .timer-display { font-size: 2.5rem; font-weight: bold; text-align: center; color: var(--accent); margin: 8px 0; }
+    .sync-status { font-size: 0.8rem; text-align: center; color: var(--muted); margin-top: 6px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); }
+
+    .flex-row { display: flex; gap: 8px; align-items: center; }
+    
+    .tree-node { background: #f8f9fa; border-radius: 8px; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border); }
+    .item-chip { background: #ffffff; border-radius: 6px; padding: 6px 10px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 1px solid var(--border); }
+
+    /* Estilos del panel de gestor modal */
+    #managerModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 999; overflow-y: auto; padding: 16px; }
+  </style>
 </head>
 <body>
 
-  <header class="app-header">
-    <h1>🏋️‍♂️ Mi Rutina Gym</h1>
-    <div id="volume-summary" class="volume-badge">Volumen total: 0 kg</div>
-  </header>
+  <!-- Audio para la alarma -->
+  <audio id="alarmAudio" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
-  <!-- Selector de Días / Rutinas -->
-  <nav class="day-selector">
-    <button class="day-btn active" data-day="dayA">Día A</button>
-    <button class="day-btn" data-day="dayB">Día B</button>
-    <button class="day-btn" data-day="dayC">Día C</button>
-  </nav>
-
-  <!-- Barra de Progreso del Día -->
-  <div class="progress-bar-container">
-    <div id="progress-bar" class="progress-bar" style="width: 0%;"></div>
+  <div class="header-container">
+    <h1>🏋️ Vigoria - Mi Entrenamiento</h1>
+    <button class="btn-main" style="width: auto;" onclick="toggleManager()">⚙️</button>
   </div>
 
-  <!-- Contenedor de Ejercicios -->
-  <main id="exercises-container" class="exercises-container">
-    <!-- Se generan dinámicamente con JS -->
-  </main>
-
-  <!-- Formulario para agregar un nuevo ejercicio -->
-  <section class="add-exercise-section">
-    <h3>➕ Agregar Ejercicio</h3>
-    <div class="add-form">
-      <input type="text" id="new-exercise-name" placeholder="Ej: Press de Banca" autocomplete="off">
-      <button id="add-exercise-btn" class="primary-btn">Agregar</button>
+  <!-- Panel del Gestor de Variables (Cambio 1) -->
+  <div id="managerModal">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h2 style="margin-bottom: 0;">⚙️ Configuración de variables</h2>
+      <button class="btn-sec" style="width: auto; margin-bottom: 0;" onclick="toggleManager()">Cerrar ❌</button>
     </div>
-  </section>
+    
+    <div class="card">
+      <div style="margin-top: 12px;">
+        <h3>🔗 URL de Google Apps Script</h3>
+        <label for="apiUrlInput">Pega aquí tu URL desplegada de Google Apps Script:</label>
+        <input type="text" id="apiUrlInput" placeholder="https://script.google.com/macros/s/.../exec" onchange="saveApiUrl(this.value)">
+      </div>
 
-  <!-- Temporizador de Descanso Flotante -->
-  <div id="timer-banner" class="timer-banner hidden">
-    <span>⏱️ Descanso: <strong id="timer-display">01:30</strong></span>
-    <button id="close-timer-btn" class="close-timer-btn">✕</button>
+      <hr style="border-color: var(--border); margin: 16px 0;">
+
+      <div>
+        <h3>⏱️ Descanso Automático por Defecto</h3>
+        <select id="defaultRestSelect" onchange="updateDefaultRest(this.value)">
+          <option value="30">30 segundos</option>
+          <option value="60">60 segundos (1 min)</option>
+          <option value="90" selected>90 segundos (1.5 min)</option>
+          <option value="120">120 segundos (2 min)</option>
+          <option value="180">180 segundos (3 min)</option>
+        </select>
+      </div>
+
+      <hr style="border-color: var(--border); margin: 16px 0;">
+
+      <div>
+        <h3>🛠️ Administración de Jerarquía</h3>
+        <button class="btn-warning" onclick="resetToDefaults()">🔄 Restablecer Estructura por Defecto</button>
+        <button class="btn-danger" style="margin-bottom: 16px; width: 100%; padding: 10px;" onclick="clearAllData()">🗑️ Borrar TODAS las Rutinas y Datos</button>
+
+        <div class="tree-node">
+          <h4>1. Días de Entrenamiento</h4>
+          <div class="flex-row" style="margin-top: 6px;">
+            <input type="text" id="newDayInput" placeholder="Ej: Lunes / Día A" style="margin-bottom: 0;">
+            <button class="btn-main" onclick="addDay()" style="width: auto; white-space: nowrap;">Añadir Día</button>
+          </div>
+          <div id="daysManagerList" style="margin-top: 8px;"></div>
+        </div>
+
+        <div class="tree-node">
+          <h4>2. Zonas del Cuerpo (por Día)</h4>
+          <label for="selectDayForZone">Seleccionar Día:</label>
+          <select id="selectDayForZone" onchange="renderZonesManager()"></select>
+          
+          <div class="flex-row">
+            <input type="text" id="newZoneInput" placeholder="Ej: Pecho, Bíceps, Pierna" style="margin-bottom: 0;">
+            <button class="btn-main" onclick="addZone()" style="width: auto; white-space: nowrap;">Añadir Zona</button>
+          </div>
+          <div id="zonesManagerList" style="margin-top: 8px;"></div>
+        </div>
+
+        <div class="tree-node">
+          <h4>3. Ejercicios (por Día y Zona)</h4>
+          <div class="grid-2">
+            <div>
+              <label for="selectDayForEx">Día:</label>
+              <select id="selectDayForEx" onchange="updateZoneDropdownForEx()"></select>
+            </div>
+            <div>
+              <label for="selectZoneForEx">Zona del Cuerpo:</label>
+              <select id="selectZoneForEx" onchange="renderExercisesManager()"></select>
+            </div>
+          </div>
+
+          <div style="background: var(--card); padding: 10px; border-radius: 6px; margin-bottom: 8px; border: 1px solid var(--border);">
+            <label>Nuevo Ejercicio:</label>
+            <input type="text" id="newExName" placeholder="Ej: Press de Banca">
+            <div class="grid-2">
+              <div>
+                <label>Peso Base (kg)</label>
+                <input type="number" id="newExWeight" value="50" step="0.5">
+              </div>
+              <div>
+                <label>Reps Base</label>
+                <input type="number" id="newExReps" value="10">
+              </div>
+            </div>
+            <button class="btn-sec" onclick="addExercise()" style="margin-bottom: 0;">+ Añadir Ejercicio</button>
+          </div>
+          <div id="exercisesManagerList"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <script src="app.js"></script>
+  <div class="card">
+    <h2>⏱️ Descanso entre series</h2>
+    <div class="timer-display" id="timerDisplay">00:00</div>
+    <div class="grid-3">
+      <button onclick="startTimer(60)">60s</button>
+      <button onclick="startTimer(90)">90s</button>
+      <button onclick="startTimer(120)">120s</button>
+    </div>
+    <button class="btn-sec" onclick="resetTimer()">Detener / Reiniciar</button>
+  </div>
+
+  <div class="card">
+    <h2>📝 Registrar Serie</h2>
+    
+    <label for="daySelect">1. Día</label>
+    <select id="daySelect" onchange="onDayChange()"></select>
+
+    <label for="zoneSelect">2. Zona del Cuerpo</label>
+    <select id="zoneSelect" onchange="onZoneChange()"></select>
+
+    <label for="exerciseSelect">3. Tipo de Ejercicio</label>
+    <select id="exerciseSelect" onchange="onExerciseChange()"></select>
+
+    <div class="grid-3">
+      <div>
+        <label for="setNum">Serie Nº</label>
+        <input type="number" id="setNum" value="1" min="1" onchange="saveUIState()">
+      </div>
+      <div>
+        <label for="weight">Peso (kg)</label>
+        <input type="number" id="weight" value="0" step="0.5">
+      </div>
+      <div>
+        <label for="reps">Reps</label>
+        <input type="number" id="reps" value="0" min="1">
+      </div>
+    </div>
+
+    <button class="btn-main" id="btnLogSet" onclick="logSet()">Completar Serie y Descansar (90s)</button>
+    <div class="sync-status" id="syncStatus">☁️ Listo para sincronizar con Google Sheets</div>
+  </div>
+
+  <div class="card">
+    <div class="flex-row" style="justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h2 style="margin-bottom: 0;">📊 Registro de Hoy</h2>
+      <button class="btn-danger" onclick="clearTodayLogs()" style="width: auto;">Borrar Hoy</button>
+    </div>
+    
+    <div style="overflow-x: auto; margin-bottom: 12px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Día</th>
+            <th>Zona</th>
+            <th>Ejercicio</th>
+            <th>Serie</th>
+            <th>Kg</th>
+            <th>Reps</th>
+          </tr>
+        </thead>
+        <tbody id="logTableBody"></tbody>
+      </table>
+    </div>
+
+    <button class="btn-main" onclick="exportToExcel()" style="background:#28a745;">
+      📥 Descargar copia en Excel (.xlsx)
+    </button>
+  </div>
+
+  <!-- Cambio 5: Modal personalizado para Alertas y Confirmaciones -->
+  <div id="customModalOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center; padding: 16px;">
+    <div class="card" style="width: 100%; max-width: 350px; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+      <h3 id="customModalTitle" style="margin-top:0;">Mensaje</h3>
+      <p id="customModalMessage" style="margin-bottom:20px; color: var(--text);"></p>
+      <div class="grid-2" id="customModalButtons"></div>
+    </div>
+  </div>
+
   <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW error:', err));
+    let GOOGLE_SCRIPT_URL = localStorage.getItem('workout_script_url') || "";
+
+    const defaultStructure = {
+      "Lunes - Día A": {
+        "Pecho": [
+          { name: "Press de Banca Plano", weight: 60, reps: 10 },
+          { name: "Press Inclinado c/Mancuernas", weight: 22, reps: 12 }
+        ],
+        "Tríceps": [
+          { name: "Extensión en Polea Alta", weight: 35, reps: 12 },
+          { name: "Fondos en Paralelas", weight: 0, reps: 10 }
+        ]
+      },
+      "Miércoles - Día B": {
+        "Espalda": [
+          { name: "Dominadas", weight: 0, reps: 8 },
+          { name: "Remo c/Barra", weight: 50, reps: 10 }
+        ],
+        "Bíceps": [
+          { name: "Curl c/Barra Z", weight: 25, reps: 10 },
+          { name: "Curl Martillo", weight: 14, reps: 12 }
+        ]
+      },
+      "Viernes - Día C": {
+        "Pierna": [
+          { name: "Sentadilla Libre", weight: 80, reps: 8 },
+          { name: "Prensa 45°", weight: 120, reps: 10 }
+        ],
+        "Hombro": [
+          { name: "Press Militar", weight: 35, reps: 10 },
+          { name: "Elevaciones Laterales", weight: 10, reps: 15 }
+        ]
+      }
+    };
+
+    let workoutData = JSON.parse(localStorage.getItem('workout_hierarchy_v3')) || defaultStructure;
+    let logs = JSON.parse(localStorage.getItem('workout_logs')) || [];
+    let defaultRestTime = Number(localStorage.getItem('workout_default_rest')) || 90;
+    let timerInterval = null;
+
+    // ----- Sistema de Modales Custom -----
+    let confirmCallback = null;
+
+    function showAlert(msg) {
+      document.getElementById('customModalTitle').textContent = 'Aviso';
+      document.getElementById('customModalMessage').textContent = msg;
+      document.getElementById('customModalButtons').innerHTML = '<button class="btn-main" onclick="closeCustomModal()" style="grid-column: span 2;">Aceptar</button>';
+      document.getElementById('customModalOverlay').style.display = 'flex';
+    }
+
+    function showConfirm(msg, onConfirm) {
+      document.getElementById('customModalTitle').textContent = 'Confirmación';
+      document.getElementById('customModalMessage').textContent = msg;
+      document.getElementById('customModalButtons').innerHTML = `
+        <button class="btn-sec" onclick="closeCustomModal()">Cancelar</button>
+        <button class="btn-main" onclick="executeConfirm()">Aceptar</button>
+      `;
+      confirmCallback = onConfirm;
+      document.getElementById('customModalOverlay').style.display = 'flex';
+    }
+
+    function executeConfirm() {
+      closeCustomModal();
+      if(confirmCallback) confirmCallback();
+    }
+
+    function closeCustomModal() {
+      document.getElementById('customModalOverlay').style.display = 'none';
+      confirmCallback = null;
+    }
+    // -------------------------------------
+
+    window.onload = () => {
+      document.getElementById('apiUrlInput').value = GOOGLE_SCRIPT_URL;
+      initAllDropdowns();
+      renderTable();
+      updateRestUI();
+      
+      // Retomar temporizador si recargó/cambió de app
+      if (localStorage.getItem('workout_timer_end')) {
+        timerInterval = setInterval(checkTimer, 1000);
+        checkTimer();
+      }
+    };
+
+    function toggleManager() {
+      const modal = document.getElementById('managerModal');
+      modal.style.display = (modal.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function saveStructure() {
+      localStorage.setItem('workout_hierarchy_v3', JSON.stringify(workoutData));
+      initAllDropdowns();
+    }
+
+    function saveApiUrl(url) {
+      GOOGLE_SCRIPT_URL = url.trim();
+      localStorage.setItem('workout_script_url', GOOGLE_SCRIPT_URL);
+    }
+
+    // Cambio 3: Guardar el estado exacto del formulario para no perderlo al cambiar de app
+    function saveUIState() {
+      localStorage.setItem('workout_ui_state', JSON.stringify({
+        day: document.getElementById('daySelect').value,
+        zone: document.getElementById('zoneSelect').value,
+        exercise: document.getElementById('exerciseSelect').value,
+        setNum: document.getElementById('setNum').value
+      }));
+    }
+
+    function initAllDropdowns() {
+      populateDayDropdowns();
+
+      // Restauración de estado al iniciar
+      const state = JSON.parse(localStorage.getItem('workout_ui_state'));
+      if (state && workoutData[state.day]) {
+        document.getElementById('daySelect').value = state.day;
+        
+        const zoneSelect = document.getElementById('zoneSelect');
+        zoneSelect.innerHTML = '';
+        Object.keys(workoutData[state.day]).forEach(zone => {
+          const opt = document.createElement('option');
+          opt.value = opt.textContent = zone;
+          zoneSelect.appendChild(opt);
+        });
+        
+        if (workoutData[state.day][state.zone]) {
+          document.getElementById('zoneSelect').value = state.zone;
+          
+          const exSelect = document.getElementById('exerciseSelect');
+          exSelect.innerHTML = '';
+          workoutData[state.day][state.zone].forEach(ex => {
+            const opt = document.createElement('option');
+            opt.value = opt.textContent = ex.name;
+            exSelect.appendChild(opt);
+          });
+
+          const exExists = workoutData[state.day][state.zone].find(e => e.name === state.exercise);
+          if (exExists) {
+            document.getElementById('exerciseSelect').value = state.exercise;
+            document.getElementById('weight').value = exExists.weight;
+            document.getElementById('reps').value = exExists.reps;
+          } else {
+            onExerciseChange(); 
+          }
+        } else {
+          onZoneChange();
+        }
+        if (state.setNum) document.getElementById('setNum').value = state.setNum;
+      } else {
+        onDayChange();
+      }
+
+      renderDaysManager();
+      renderZonesManager();
+      renderExercisesManager();
+    }
+
+    function populateDayDropdowns() {
+      const daySelect = document.getElementById('daySelect');
+      const selectDayForZone = document.getElementById('selectDayForZone');
+      const selectDayForEx = document.getElementById('selectDayForEx');
+
+      const days = Object.keys(workoutData);
+
+      [daySelect, selectDayForZone, selectDayForEx].forEach(select => {
+        const currVal = select.value;
+        select.innerHTML = '';
+        days.forEach(day => {
+          const opt = document.createElement('option');
+          opt.value = opt.textContent = day;
+          select.appendChild(opt);
+        });
+        if (days.includes(currVal)) select.value = currVal;
+      });
+      updateZoneDropdownForEx();
+    }
+
+    function onDayChange() {
+      const selectedDay = document.getElementById('daySelect').value;
+      const zoneSelect = document.getElementById('zoneSelect');
+      zoneSelect.innerHTML = '';
+
+      if (!selectedDay || !workoutData[selectedDay]) {
+        onZoneChange();
+        return;
+      }
+
+      Object.keys(workoutData[selectedDay]).forEach(zone => {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = zone;
+        zoneSelect.appendChild(opt);
+      });
+      onZoneChange();
+    }
+
+    function onZoneChange() {
+      const selectedDay = document.getElementById('daySelect').value;
+      const selectedZone = document.getElementById('zoneSelect').value;
+      const exSelect = document.getElementById('exerciseSelect');
+      exSelect.innerHTML = '';
+
+      if (!selectedDay || !selectedZone || !workoutData[selectedDay] || !workoutData[selectedDay][selectedZone]) {
+        onExerciseChange();
+        return;
+      }
+
+      workoutData[selectedDay][selectedZone].forEach(ex => {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = ex.name;
+        exSelect.appendChild(opt);
+      });
+      onExerciseChange();
+    }
+
+    function onExerciseChange() {
+      const selectedDay = document.getElementById('daySelect').value;
+      const selectedZone = document.getElementById('zoneSelect').value;
+      const selectedEx = document.getElementById('exerciseSelect').value;
+
+      if (!selectedDay || !selectedZone || !selectedEx || !workoutData[selectedDay] || !workoutData[selectedDay][selectedZone]) {
+        document.getElementById('weight').value = 0;
+        document.getElementById('reps').value = 0;
+        saveUIState();
+        return;
+      }
+
+      const exObj = workoutData[selectedDay][selectedZone].find(e => e.name === selectedEx);
+      if (exObj) {
+        document.getElementById('weight').value = exObj.weight;
+        document.getElementById('reps').value = exObj.reps;
+      }
+      saveUIState();
+    }
+
+    function addDay() {
+      const input = document.getElementById('newDayInput');
+      const val = input.value.trim();
+      if (!val) return;
+      if (!workoutData[val]) {
+        workoutData[val] = {};
+        saveStructure();
+        input.value = '';
+      }
+    }
+
+    function deleteDay(day) {
+      showConfirm(`¿Borrar el día "${day}" y todas sus zonas/ejercicios?`, () => {
+        delete workoutData[day];
+        saveStructure();
+      });
+    }
+
+    function renderDaysManager() {
+      const container = document.getElementById('daysManagerList');
+      container.innerHTML = '';
+      Object.keys(workoutData).forEach(day => {
+        const div = document.createElement('div');
+        div.className = 'item-chip';
+        div.innerHTML = `
+          <span>📅 ${day}</span>
+          <button class="btn-danger" style="width: auto;" onclick="deleteDay('${day}')">Eliminar</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function addZone() {
+      const day = document.getElementById('selectDayForZone').value;
+      const input = document.getElementById('newZoneInput');
+      const val = input.value.trim();
+      if (!day || !val) return;
+
+      if (!workoutData[day][val]) {
+        workoutData[day][val] = [];
+        saveStructure();
+        input.value = '';
+      }
+    }
+
+    function deleteZone(day, zone) {
+      showConfirm(`¿Borrar la zona "${zone}" del día "${day}"?`, () => {
+        delete workoutData[day][zone];
+        saveStructure();
+      });
+    }
+
+    function renderZonesManager() {
+      const day = document.getElementById('selectDayForZone').value;
+      const container = document.getElementById('zonesManagerList');
+      container.innerHTML = '';
+      if (!day || !workoutData[day]) return;
+
+      Object.keys(workoutData[day]).forEach(zone => {
+        const div = document.createElement('div');
+        div.className = 'item-chip';
+        div.innerHTML = `
+          <span>💪 ${zone}</span>
+          <button class="btn-danger" style="width: auto;" onclick="deleteZone('${day}', '${zone}')">Eliminar</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function updateZoneDropdownForEx() {
+      const day = document.getElementById('selectDayForEx').value;
+      const zoneSelect = document.getElementById('selectZoneForEx');
+      zoneSelect.innerHTML = '';
+      if (!day || !workoutData[day]) return;
+
+      Object.keys(workoutData[day]).forEach(zone => {
+        const opt = document.createElement('option');
+        opt.value = opt.textContent = zone;
+        zoneSelect.appendChild(opt);
+      });
+      renderExercisesManager();
+    }
+
+    function addExercise() {
+      const day = document.getElementById('selectDayForEx').value;
+      const zone = document.getElementById('selectZoneForEx').value;
+      const name = document.getElementById('newExName').value.trim();
+      const weight = Number(document.getElementById('newExWeight').value);
+      const reps = Number(document.getElementById('newExReps').value);
+
+      if (!day || !zone || !name) return;
+
+      workoutData[day][zone].push({ name, weight, reps });
+      saveStructure();
+      document.getElementById('newExName').value = '';
+    }
+
+    function deleteExercise(day, zone, index) {
+      workoutData[day][zone].splice(index, 1);
+      saveStructure();
+    }
+
+    function renderExercisesManager() {
+      const day = document.getElementById('selectDayForEx').value;
+      const zone = document.getElementById('selectZoneForEx').value;
+      const container = document.getElementById('exercisesManagerList');
+      container.innerHTML = '';
+
+      if (!day || !zone || !workoutData[day] || !workoutData[day][zone]) return;
+
+      workoutData[day][zone].forEach((ex, idx) => {
+        const div = document.createElement('div');
+        div.className = 'item-chip';
+        div.innerHTML = `
+          <span>🏋️ <strong>${ex.name}</strong> (${ex.weight} kg)</span>
+          <button class="btn-danger" style="width: auto;" onclick="deleteExercise('${day}', '${zone}', ${idx})">Eliminar</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function resetToDefaults() {
+      showConfirm("¿Seguro que deseas restablecer la estructura por defecto? Esto no borrará tus registros anteriores.", () => {
+        workoutData = defaultStructure;
+        saveStructure();
+      });
+    }
+
+    function clearAllData() {
+      showConfirm("🚨 ATENCIÓN: Esto eliminará TODOS los Días, Zonas y Ejercicios configurados. ¿Continuar?", () => {
+        workoutData = {};
+        saveStructure();
+      });
+    }
+
+    function clearTodayLogs() {
+      showConfirm("¿Borrar el historial de registros visibles de hoy?", () => {
+        logs = [];
+        localStorage.removeItem('workout_logs');
+        renderTable();
+      });
+    }
+
+    async function logSet() {
+      const day = document.getElementById('daySelect').value;
+      const zone = document.getElementById('zoneSelect').value;
+      const exercise = document.getElementById('exerciseSelect').value;
+      const setNum = document.getElementById('setNum').value;
+      const weight = document.getElementById('weight').value;
+      const reps = document.getElementById('reps').value;
+      const statusDiv = document.getElementById('syncStatus');
+
+      if (!exercise || !weight || !reps) {
+        showAlert("Por favor selecciona un ejercicio válido.");
+        return;
+      }
+
+      const entry = {
+        Fecha: new Date().toLocaleDateString('es-AR'),
+        Hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        Día: day,
+        Zona: zone,
+        Ejercicio: exercise,
+        Serie: Number(setNum),
+        "Peso (kg)": Number(weight),
+        Repeticiones: Number(reps)
+      };
+
+      logs.push(entry);
+      localStorage.setItem('workout_logs', JSON.stringify(logs));
+      renderTable();
+
+      if (GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL.includes("script.google.com")) {
+        statusDiv.textContent = "⏳ Sincronizando con Google Sheets...";
+        statusDiv.style.color = "var(--muted)";
+        try {
+          fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(entry)
+          });
+          statusDiv.textContent = "✅ Guardado en Google Sheets con éxito";
+          statusDiv.style.color = "var(--accent)";
+        } catch (error) {
+          statusDiv.textContent = "⚠️ Guardado solo local (Fallo conexión nube)";
+          statusDiv.style.color = "var(--danger)";
+        }
+      } else {
+        statusDiv.textContent = "⚠️ Configura la API para auto-sincronizar";
+        statusDiv.style.color = "var(--danger)";
+      }
+
+      document.getElementById('setNum').value = Number(setNum) + 1;
+      saveUIState(); // Guardamos que sumó una serie
+      startTimer(defaultRestTime);
+    }
+
+    function updateDefaultRest(seconds) {
+      defaultRestTime = Number(seconds);
+      localStorage.setItem('workout_default_rest', defaultRestTime);
+      updateRestUI();
+    }
+
+    function updateRestUI() {
+      document.getElementById('defaultRestSelect').value = defaultRestTime;
+      document.getElementById('btnLogSet').textContent = `Completar Serie y Descansar (${defaultRestTime}s)`;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('logTableBody');
+      tbody.innerHTML = '';
+      logs.forEach(log => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${log.Día || '-'}</td>
+          <td>${log.Zona || '-'}</td>
+          <td>${log.Ejercicio}</td>
+          <td>${log.Serie}</td>
+          <td>${log["Peso (kg)"]}</td>
+          <td>${log.Repeticiones}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Cambio 2 y 6: Temporizador basado en Date.now() y notificacion por audio
+    function startTimer(seconds) {
+      // Intentamos desbloquear el audio interactuando con él al toque del usuario
+      const audio = document.getElementById('alarmAudio');
+      audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+      }).catch(e => console.log("Unlock audio info:", e));
+
+      const endTime = Date.now() + (seconds * 1000);
+      localStorage.setItem('workout_timer_end', endTime);
+      
+      clearInterval(timerInterval);
+      timerInterval = setInterval(checkTimer, 1000);
+      checkTimer();
+    }
+
+    function checkTimer() {
+      const endTime = localStorage.getItem('workout_timer_end');
+      if (!endTime) return;
+
+      const remaining = Math.round((endTime - Date.now()) / 1000);
+      
+      if (remaining <= 0) {
+        clearInterval(timerInterval);
+        localStorage.removeItem('workout_timer_end');
+        updateTimerDisplay(0);
+        
+        // Sonido de alerta
+        document.getElementById('alarmAudio').play().catch(e=>console.log(e));
+        showAlert('⏱️ ¡Tiempo de descanso terminado! A la siguiente serie.');
+      } else {
+        updateTimerDisplay(remaining);
+      }
+    }
+
+    function resetTimer() {
+      clearInterval(timerInterval);
+      localStorage.removeItem('workout_timer_end');
+      updateTimerDisplay(0);
+    }
+
+    function updateTimerDisplay(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      document.getElementById('timerDisplay').textContent = 
+        `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    function exportToExcel() {
+      if (logs.length === 0) {
+        showAlert("No hay series registradas para exportar.");
+        return;
+      }
+      const worksheet = XLSX.utils.json_to_sheet(logs);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Entrenamientos");
+      const today = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(workbook, `Registro_Entrenamiento_${today}.xlsx`);
     }
   </script>
 </body>
