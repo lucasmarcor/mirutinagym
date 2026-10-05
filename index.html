@@ -7,8 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root {
-      /* Cambio 4: Modo claro en tonos azules */
-      --bg: #f4f6f9;
+      var(--bg): #f4f6f9;
       --card: #ffffff;
       --accent: #007bff;
       --text: #212529;
@@ -17,12 +16,12 @@
       --danger: #dc3545;
       --warning: #ffc107;
       --input-bg: #ffffff;
+      --bg: #f4f6f9;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background-color: var(--bg); color: var(--text); padding: 16px; max-width: 600px; margin: 0 auto; }
 
-    /* Cambio 1: Encabezado con botón de gestor a la derecha */
     .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
     .header-container h1 { font-size: 1.4rem; margin-bottom: 0; }
     
@@ -53,13 +52,11 @@
     .tree-node { background: #f8f9fa; border-radius: 8px; padding: 10px; margin-bottom: 10px; border: 1px solid var(--border); }
     .item-chip { background: #ffffff; border-radius: 6px; padding: 6px 10px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; border: 1px solid var(--border); }
 
-    /* Estilos del panel de gestor modal */
     #managerModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 999; overflow-y: auto; padding: 16px; }
   </style>
 </head>
 <body>
 
-  <!-- Audio para la alarma -->
   <audio id="alarmAudio" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
   <div class="header-container">
@@ -67,7 +64,6 @@
     <button class="btn-main" style="width: auto;" onclick="toggleManager()">⚙️</button>
   </div>
 
-  <!-- Panel del Gestor de Variables (Cambio 1) -->
   <div id="managerModal">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <h2 style="margin-bottom: 0;">⚙️ Configuración de variables</h2>
@@ -140,12 +136,12 @@
             <input type="text" id="newExName" placeholder="Ej: Press de Banca">
             <div class="grid-2">
               <div>
-                <label>Peso Base (kg)</label>
-                <input type="number" id="newExWeight" value="50" step="0.5">
+                <label>Pesos (kg) ej: 50,55,60</label>
+                <input type="text" id="newExWeight" value="50">
               </div>
               <div>
-                <label>Reps Base</label>
-                <input type="number" id="newExReps" value="10">
+                <label>Reps ej: 10,8,6</label>
+                <input type="text" id="newExReps" value="10">
               </div>
             </div>
             <button class="btn-sec" onclick="addExercise()" style="margin-bottom: 0;">+ Añadir Ejercicio</button>
@@ -182,7 +178,8 @@
     <div class="grid-3">
       <div>
         <label for="setNum">Serie Nº</label>
-        <input type="number" id="setNum" value="1" min="1" onchange="saveUIState()">
+        <!-- Disparamos la actualización al cambiar el número de serie -->
+        <input type="number" id="setNum" value="1" min="1" onchange="updateFormForCurrentSet()">
       </div>
       <div>
         <label for="weight">Peso (kg)</label>
@@ -225,7 +222,6 @@
     </button>
   </div>
 
-  <!-- Cambio 5: Modal personalizado para Alertas y Confirmaciones -->
   <div id="customModalOverlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:2000; align-items:center; justify-content:center; padding: 16px;">
     <div class="card" style="width: 100%; max-width: 350px; margin: 0; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
       <h3 id="customModalTitle" style="margin-top:0;">Mensaje</h3>
@@ -237,35 +233,36 @@
   <script>
     let GOOGLE_SCRIPT_URL = localStorage.getItem('workout_script_url') || "";
 
+    // Actualizamos la estructura predeterminada para que acepte arrays en pesos y reps
     const defaultStructure = {
       "Lunes - Día A": {
         "Pecho": [
-          { name: "Press de Banca Plano", weight: 60, reps: 10 },
-          { name: "Press Inclinado c/Mancuernas", weight: 22, reps: 12 }
+          { name: "Press de Banca Plano", weights: [60], reps: [10] },
+          { name: "Press Inclinado c/Mancuernas", weights: [22], reps: [12] }
         ],
         "Tríceps": [
-          { name: "Extensión en Polea Alta", weight: 35, reps: 12 },
-          { name: "Fondos en Paralelas", weight: 0, reps: 10 }
+          { name: "Extensión en Polea Alta", weights: [35], reps: [12] },
+          { name: "Fondos en Paralelas", weights: [0], reps: [10] }
         ]
       },
       "Miércoles - Día B": {
         "Espalda": [
-          { name: "Dominadas", weight: 0, reps: 8 },
-          { name: "Remo c/Barra", weight: 50, reps: 10 }
+          { name: "Dominadas", weights: [0], reps: [8] },
+          { name: "Remo c/Barra", weights: [50], reps: [10] }
         ],
         "Bíceps": [
-          { name: "Curl c/Barra Z", weight: 25, reps: 10 },
-          { name: "Curl Martillo", weight: 14, reps: 12 }
+          { name: "Curl c/Barra Z", weights: [25], reps: [10] },
+          { name: "Curl Martillo", weights: [14], reps: [12] }
         ]
       },
       "Viernes - Día C": {
         "Pierna": [
-          { name: "Sentadilla Libre", weight: 80, reps: 8 },
-          { name: "Prensa 45°", weight: 120, reps: 10 }
+          { name: "Sentadilla Libre", weights: [80], reps: [8] },
+          { name: "Prensa 45°", weights: [120], reps: [10] }
         ],
         "Hombro": [
-          { name: "Press Militar", weight: 35, reps: 10 },
-          { name: "Elevaciones Laterales", weight: 10, reps: 15 }
+          { name: "Press Militar", weights: [35], reps: [10] },
+          { name: "Elevaciones Laterales", weights: [10], reps: [15] }
         ]
       }
     };
@@ -275,7 +272,6 @@
     let defaultRestTime = Number(localStorage.getItem('workout_default_rest')) || 90;
     let timerInterval = null;
 
-    // ----- Sistema de Modales Custom -----
     let confirmCallback = null;
 
     function showAlert(msg) {
@@ -297,15 +293,16 @@
     }
 
     function executeConfirm() {
+      // Guardamos la instrucción antes de cerrar el modal para que no se borre
+      const cb = confirmCallback;
       closeCustomModal();
-      if(confirmCallback) confirmCallback();
+      if(cb) cb();
     }
 
     function closeCustomModal() {
       document.getElementById('customModalOverlay').style.display = 'none';
       confirmCallback = null;
     }
-    // -------------------------------------
 
     window.onload = () => {
       document.getElementById('apiUrlInput').value = GOOGLE_SCRIPT_URL;
@@ -313,7 +310,6 @@
       renderTable();
       updateRestUI();
       
-      // Retomar temporizador si recargó/cambió de app
       if (localStorage.getItem('workout_timer_end')) {
         timerInterval = setInterval(checkTimer, 1000);
         checkTimer();
@@ -335,7 +331,6 @@
       localStorage.setItem('workout_script_url', GOOGLE_SCRIPT_URL);
     }
 
-    // Cambio 3: Guardar el estado exacto del formulario para no perderlo al cambiar de app
     function saveUIState() {
       localStorage.setItem('workout_ui_state', JSON.stringify({
         day: document.getElementById('daySelect').value,
@@ -348,7 +343,6 @@
     function initAllDropdowns() {
       populateDayDropdowns();
 
-      // Restauración de estado al iniciar
       const state = JSON.parse(localStorage.getItem('workout_ui_state'));
       if (state && workoutData[state.day]) {
         document.getElementById('daySelect').value = state.day;
@@ -375,15 +369,14 @@
           const exExists = workoutData[state.day][state.zone].find(e => e.name === state.exercise);
           if (exExists) {
             document.getElementById('exerciseSelect').value = state.exercise;
-            document.getElementById('weight').value = exExists.weight;
-            document.getElementById('reps').value = exExists.reps;
+            if (state.setNum) document.getElementById('setNum').value = state.setNum;
+            updateFormForCurrentSet();
           } else {
             onExerciseChange(); 
           }
         } else {
           onZoneChange();
         }
-        if (state.setNum) document.getElementById('setNum').value = state.setNum;
       } else {
         onDayChange();
       }
@@ -451,21 +444,36 @@
     }
 
     function onExerciseChange() {
-      const selectedDay = document.getElementById('daySelect').value;
-      const selectedZone = document.getElementById('zoneSelect').value;
-      const selectedEx = document.getElementById('exerciseSelect').value;
+      document.getElementById('setNum').value = 1;
+      updateFormForCurrentSet();
+    }
 
-      if (!selectedDay || !selectedZone || !selectedEx || !workoutData[selectedDay] || !workoutData[selectedDay][selectedZone]) {
+    // Nueva función que autocompleta el peso y las repeticiones según el número de serie actual
+    function updateFormForCurrentSet() {
+      const day = document.getElementById('daySelect').value;
+      const zone = document.getElementById('zoneSelect').value;
+      const exName = document.getElementById('exerciseSelect').value;
+      const setNum = parseInt(document.getElementById('setNum').value) || 1;
+
+      if (!day || !zone || !exName || !workoutData[day] || !workoutData[day][zone]) {
         document.getElementById('weight').value = 0;
         document.getElementById('reps').value = 0;
         saveUIState();
         return;
       }
 
-      const exObj = workoutData[selectedDay][selectedZone].find(e => e.name === selectedEx);
+      const exObj = workoutData[day][zone].find(e => e.name === exName);
       if (exObj) {
-        document.getElementById('weight').value = exObj.weight;
-        document.getElementById('reps').value = exObj.reps;
+        // Soporte retroactivo si los datos viejos no usan arrays
+        let weights = exObj.weights !== undefined ? exObj.weights : [exObj.weight];
+        let repsArr = Array.isArray(exObj.reps) ? exObj.reps : [exObj.reps];
+
+        // Calculamos el índice (si hacemos más series, repetimos el último valor configurado)
+        let wIndex = Math.min(setNum - 1, weights.length - 1);
+        let rIndex = Math.min(setNum - 1, repsArr.length - 1);
+
+        document.getElementById('weight').value = weights[wIndex] || 0;
+        document.getElementById('reps').value = repsArr[rIndex] || 0;
       }
       saveUIState();
     }
@@ -557,12 +565,18 @@
       const day = document.getElementById('selectDayForEx').value;
       const zone = document.getElementById('selectZoneForEx').value;
       const name = document.getElementById('newExName').value.trim();
-      const weight = Number(document.getElementById('newExWeight').value);
-      const reps = Number(document.getElementById('newExReps').value);
+      
+      // Obtenemos los valores que pueden estar separados por coma
+      const weightRaw = document.getElementById('newExWeight').value;
+      const repsRaw = document.getElementById('newExReps').value;
 
       if (!day || !zone || !name) return;
 
-      workoutData[day][zone].push({ name, weight, reps });
+      // Convertimos los strings separados por coma en arrays de números
+      const weights = weightRaw.split(',').map(w => Number(w.trim()) || 0);
+      const repsArr = repsRaw.split(',').map(r => Number(r.trim()) || 0);
+
+      workoutData[day][zone].push({ name, weights, reps: repsArr });
       saveStructure();
       document.getElementById('newExName').value = '';
     }
@@ -581,10 +595,14 @@
       if (!day || !zone || !workoutData[day] || !workoutData[day][zone]) return;
 
       workoutData[day][zone].forEach((ex, idx) => {
+        // Mostramos las listas unidas por coma para una lectura más fácil
+        let w = ex.weights !== undefined ? ex.weights.join(', ') : ex.weight;
+        let r = Array.isArray(ex.reps) ? ex.reps.join(', ') : ex.reps;
+        
         const div = document.createElement('div');
         div.className = 'item-chip';
         div.innerHTML = `
-          <span>🏋️ <strong>${ex.name}</strong> (${ex.weight} kg)</span>
+          <span>🏋️ <strong>${ex.name}</strong> (${w} kg, ${r} reps)</span>
           <button class="btn-danger" style="width: auto;" onclick="deleteExercise('${day}', '${zone}', ${idx})">Eliminar</button>
         `;
         container.appendChild(div);
@@ -664,7 +682,9 @@
       }
 
       document.getElementById('setNum').value = Number(setNum) + 1;
-      saveUIState(); // Guardamos que sumó una serie
+      
+      // Actualizamos automáticamente los campos para la siguiente serie
+      updateFormForCurrentSet(); 
       startTimer(defaultRestTime);
     }
 
@@ -696,9 +716,7 @@
       });
     }
 
-    // Cambio 2 y 6: Temporizador basado en Date.now() y notificacion por audio
     function startTimer(seconds) {
-      // Intentamos desbloquear el audio interactuando con él al toque del usuario
       const audio = document.getElementById('alarmAudio');
       audio.play().then(() => {
         audio.pause();
@@ -724,7 +742,6 @@
         localStorage.removeItem('workout_timer_end');
         updateTimerDisplay(0);
         
-        // Sonido de alerta
         document.getElementById('alarmAudio').play().catch(e=>console.log(e));
         showAlert('⏱️ ¡Tiempo de descanso terminado! A la siguiente serie.');
       } else {
