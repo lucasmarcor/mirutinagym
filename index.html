@@ -95,6 +95,10 @@
       <div>
         <h3>🛠️ Administración de Jerarquía</h3>
         <button class="btn-warning" onclick="resetToDefaults()">🔄 Restablecer Estructura por Defecto</button>
+        <div class="grid-2" style="margin-bottom: 16px;">
+  <button class="btn-main" onclick="uploadConfigToCloud()">☁️ Subir Rutina a la Nube</button>
+  <button class="btn-sec" onclick="downloadConfigFromCloud()">⬇️ Descargar de la Nube</button>
+</div>
         <button class="btn-danger" style="margin-bottom: 16px; width: 100%; padding: 10px;" onclick="clearAllData()">🗑️ Borrar TODAS las Rutinas y Datos</button>
 
         <div class="tree-node">
@@ -773,6 +777,50 @@
       const today = new Date().toISOString().split('T')[0];
       XLSX.writeFile(workbook, `Registro_Entrenamiento_${today}.xlsx`);
     }
+    async function uploadConfigToCloud() {
+  if (!GOOGLE_SCRIPT_URL || !GOOGLE_SCRIPT_URL.includes("script.google.com")) {
+    return showAlert("Primero configurá una URL válida de Apps Script.");
+  }
+  
+  // Usamos el mismo fetch pero le agregamos action: "saveConfig"
+  try {
+    fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "saveConfig", config: workoutData })
+    });
+    // Como es no-cors, asumimos el éxito tras un instante
+    setTimeout(() => showAlert("✅ Configuración enviada a la nube."), 800);
+  } catch (e) {
+    showAlert("⚠️ Error de conexión subiendo a la nube.");
+  }
+}
+
+async function downloadConfigFromCloud() {
+  if (!GOOGLE_SCRIPT_URL || !GOOGLE_SCRIPT_URL.includes("script.google.com")) {
+    return showAlert("Primero configurá una URL válida de Apps Script.");
+  }
+  
+  showAlert("⏳ Buscando configuración en la nube...");
+  
+  try {
+    // Para hacer GET y leer la respuesta, no usamos "no-cors"
+    const res = await fetch(GOOGLE_SCRIPT_URL);
+    const cloudData = await res.json();
+    
+    if (Object.keys(cloudData).length > 0) {
+      workoutData = cloudData;
+      saveStructure(); // Esto sobrescribe el localStorage y refresca toda la app
+      showAlert("✅ Configuración descargada y aplicada con éxito.");
+    } else {
+      showAlert("⚠️ La nube está vacía. Subí tu configuración primero.");
+    }
+  } catch (e) {
+    console.error(e);
+    showAlert("⚠️ Error al descargar. Verificá que tu script tenga la función doGet() implementada y los permisos configurados en 'Cualquier persona'.");
+  }
+}
   </script>
 </body>
 </html>
